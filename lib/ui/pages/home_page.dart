@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mapbox_implementation/entities/search_response_entity.dart';
+import 'package:mapbox_implementation/provider/search_recommendations_provider.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:provider/provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,20 +24,15 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    
-    cameraPosition = Position(116.84736863711628, -1.2385228248171842);
 
-    focusNode.addListener(() {
-      if (!focusNode.hasFocus) {
-        controller.text = searchText ?? "";
-      }
-    });
+    cameraPosition = Position(116.84736863711628, -1.2385228248171842);
   }
 
   @override
   void dispose() {
     super.dispose();
     controller.dispose();
+    pointAnnotationManager?.deleteAll();
   }
 
   @override
@@ -45,7 +43,7 @@ class _HomePageState extends State<HomePage> {
           alignment: Alignment.topCenter,
           children: [
             _maps(context),
-            _search(context)
+            _searchArea(context)
           ],
         ),
       ),
@@ -106,6 +104,21 @@ class _HomePageState extends State<HomePage> {
     pointAnnotationManager?.deleteAll();
   }
 
+  Widget _searchArea(BuildContext context) {
+    return Column(
+      children: [
+        _search(context),
+        Consumer<SearchRecommendationsProvider>(
+            builder: (context, state, _) {
+              return (state.searchResults != null)
+                  ? _searchResultBox(context)
+                  : const SizedBox.shrink();
+            }
+        )
+      ],
+    );
+  }
+
   Widget _search(BuildContext context) {
     return GestureDetector(
       child: Container(
@@ -116,7 +129,7 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.grey
             )
         ),
-        margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 10),
+        margin: const EdgeInsets.only(top: 32, left: 10, right: 10, bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 8,),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -147,47 +160,153 @@ class _HomePageState extends State<HomePage> {
     return Container(
       margin: EdgeInsets.only(left: 8),
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
-      child: TextField(
-        onSubmitted: (value) {},
-        controller: controller,
-        focusNode: focusNode,
-        textInputAction: TextInputAction.search,
-        textAlignVertical: TextAlignVertical.center,
-        style: const TextStyle(
-          fontSize: 16
-        ),
-        cursorColor: Colors.grey,
-        decoration: InputDecoration(
-          hintText: "Search...",
-          hintStyle: const TextStyle(
-            fontSize: 16,
-            color: Colors.grey
-          ),
-          suffixIcon: _suffixIcon(context),
-          contentPadding: const EdgeInsets.only(
-            top: 10,
-            bottom: 10,
-          ),
-          border: InputBorder.none,
-        ),
+      child: Consumer<SearchRecommendationsProvider>(
+        builder: (context, provider, _) {
+          return TextField(
+            onSubmitted: (value) async {
+              if (value.isNotEmpty) {
+                await provider.getSearchResults(value);
+              }
+            },
+            // onChanged: (value) async {
+            //   if (value.isNotEmpty) {
+            //     // _startSearching(value);
+            //     await provider.getSearchResults(value);
+            //   }
+            // },
+            controller: controller,
+            focusNode: focusNode,
+            textInputAction: TextInputAction.search,
+            textAlignVertical: TextAlignVertical.center,
+            style: const TextStyle(
+                fontSize: 16
+            ),
+            cursorColor: Colors.grey,
+            decoration: InputDecoration(
+              hintText: "Search...",
+              hintStyle: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey
+              ),
+              suffixIcon: _suffixIcon(context),
+              contentPadding: const EdgeInsets.only(
+                top: 10,
+                bottom: 10,
+              ),
+              border: InputBorder.none,
+            ),
+          );
+        }
       ),
     );
   }
+
+  // Future<void> _startSearching(String value) async {
+  //   print("Error getting recommendations");
+  //   await context.watch<SearchRecommendationsProvider>().getSearchResults(value);
+  // }
 
   Widget _suffixIcon(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        if (searchText != null && searchText!.isNotEmpty) {
-          searchText = null;
-          controller.clear();
-          focusNode.unfocus();
-        }
+        searchText = null;
+        controller.clear();
+        focusNode.unfocus();
       },
       child: const Icon(
         Icons.clear,
         size: 20,
+        color: Colors.grey
       ),
     );
   }
 
+  Widget _searchResultBox(BuildContext context) {
+    double height = MediaQuery.of(context).size.height;
+
+    return Container(
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: Colors.grey
+          )
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8,),
+      child: Consumer<SearchRecommendationsProvider>(
+        builder: (context, state, _) {
+          return (state.isLoading)
+              ? const Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: const Center(
+                      child: CircularProgressIndicator(color: Colors.grey),
+                    ),
+                )
+              : (state.searchResults != null)
+                  ? Container(
+                      height: height * 0.45,
+                      margin: const EdgeInsets.only(top: 8),
+                      child: ListView.builder(
+                        itemCount: 5,
+                        itemBuilder: (context, index) {
+                          return _searchResultItem(
+                            context,
+                            state.searchResults!.features![index].properties!
+                          );
+                        }
+                      )
+                    )
+                  : const SizedBox.shrink();
+            }
+          )
+    );
+  }
+
+  Widget _searchResultItem(BuildContext context, PropertiesEntity item) {
+    num long = item.coordinates?.longitude as num;
+    num lat = item.coordinates?.latitude as num;
+
+    return GestureDetector(
+      onTap: () => _onSearchItemTapped(Position(long, lat)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.placeFormatted!,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              item.fullAddress!,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 14,
+                overflow: TextOverflow.ellipsis,
+                color: Colors.grey
+              ),
+            ),
+            const Divider(
+              color: Colors.grey,
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onSearchItemTapped(Position position) async {
+    _clearPreviousAnnotation();
+    cameraPosition = position;
+    _setCameraPosition();
+    _setAnnotation();
+    print("New Annotation Coordinates\nLong : ${cameraPosition?.lng}, Lat: ${cameraPosition?.lat}");
+  }
 }
