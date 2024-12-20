@@ -75,13 +75,16 @@ class _HomePageState extends State<HomePage> {
   }
   
   void _setCameraPosition() {
-    mapbox?.setCamera(CameraOptions(
+    mapbox?.flyTo(
+      CameraOptions(
         center: Point(coordinates: cameraPosition!),
         padding: MbxEdgeInsets( top: 40.0, left: 5.0, bottom: 80.0, right: 5.0),
         zoom: 17.0,
         bearing: 0,
         pitch: 60
-    ));
+      ),
+      MapAnimationOptions(duration: 1500, startDelay: 0)
+    );
   }
   
   void _setAnnotation() async {
@@ -94,7 +97,7 @@ class _HomePageState extends State<HomePage> {
     pointAnnotationOptions = PointAnnotationOptions(
         geometry: Point(coordinates: cameraPosition!), // Example coordinates
         image: imageData,
-        iconSize: 1.5
+        iconSize: 1.0
     );
 
     pointAnnotationManager?.create(pointAnnotationOptions!);
@@ -168,12 +171,6 @@ class _HomePageState extends State<HomePage> {
                 await provider.getSearchResults(value);
               }
             },
-            // onChanged: (value) async {
-            //   if (value.isNotEmpty) {
-            //     // _startSearching(value);
-            //     await provider.getSearchResults(value);
-            //   }
-            // },
             controller: controller,
             focusNode: focusNode,
             textInputAction: TextInputAction.search,
@@ -201,23 +198,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Future<void> _startSearching(String value) async {
-  //   print("Error getting recommendations");
-  //   await context.watch<SearchRecommendationsProvider>().getSearchResults(value);
-  // }
-
   Widget _suffixIcon(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        searchText = null;
-        controller.clear();
-        focusNode.unfocus();
+    return Consumer<SearchRecommendationsProvider>(
+      builder: (context, provider, _) {
+        return GestureDetector(
+          onTap: () async {
+            searchText = null;
+            controller.clear();
+            focusNode.unfocus();
+            await provider.clearResults();
+          },
+          child: const Icon(
+              Icons.clear,
+              size: 20,
+              color: Colors.grey
+          ),
+        );
       },
-      child: const Icon(
-        Icons.clear,
-        size: 20,
-        color: Colors.grey
-      ),
     );
   }
 
@@ -245,16 +242,22 @@ class _HomePageState extends State<HomePage> {
                 )
               : (state.searchResults != null)
                   ? Container(
-                      height: height * 0.45,
-                      margin: const EdgeInsets.only(top: 8),
-                      child: ListView.builder(
-                        itemCount: 5,
-                        itemBuilder: (context, index) {
-                          return _searchResultItem(
-                            context,
-                            state.searchResults!.features![index].properties!
-                          );
-                        }
+                      height: (state.searchResults!.features!.length > 1)
+                        ? height * (state.searchResults!.features!.length / 13)
+                        : height * 0.1,
+                      child: Center(
+                        child: (state.searchResults!.features!.isNotEmpty)
+                            ? ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: state.searchResults!.features!.length,
+                                  itemBuilder: (context, index) {
+                                    return _searchResultItem(
+                                        context,
+                                        state.searchResults!.features![index].properties!
+                                    );
+                                  }
+                              )
+                            : const Text("Not results found", style: TextStyle(color: Colors.grey)),
                       )
                     )
                   : const SizedBox.shrink();
@@ -267,42 +270,47 @@ class _HomePageState extends State<HomePage> {
     num long = item.coordinates?.longitude as num;
     num lat = item.coordinates?.latitude as num;
 
-    return GestureDetector(
-      onTap: () => _onSearchItemTapped(Position(long, lat)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.placeFormatted!,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                overflow: TextOverflow.ellipsis,
-              ),
+    return Consumer<SearchRecommendationsProvider>(
+      builder: (context, provider, _) {
+        return GestureDetector(
+          onTap: () => _onSearchItemTapped(Position(long, lat), provider),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.placeFormatted!,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  item.fullAddress!,
+                  maxLines: 1,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      overflow: TextOverflow.ellipsis,
+                      color: Colors.grey
+                  ),
+                ),
+                const Divider(
+                  color: Colors.grey,
+                )
+              ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              item.fullAddress!,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 14,
-                overflow: TextOverflow.ellipsis,
-                color: Colors.grey
-              ),
-            ),
-            const Divider(
-              color: Colors.grey,
-            )
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 
-  Future<void> _onSearchItemTapped(Position position) async {
+  Future<void> _onSearchItemTapped(Position position, SearchRecommendationsProvider provider) async {
+    await provider.clearResults();
     _clearPreviousAnnotation();
     cameraPosition = position;
     _setCameraPosition();

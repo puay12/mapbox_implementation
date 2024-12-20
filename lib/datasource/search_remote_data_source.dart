@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:mapbox_implementation/common/constants.dart';
 
@@ -22,7 +20,7 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
           queryParameters: {
             "q": searchText,
             "access_token": ACCESS_TOKEN,
-            "country": "ID"
+            "country": "id"
           }
       );
       result = SearchResponseModel.fromJson(response.data);
