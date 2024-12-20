@@ -14,7 +14,7 @@ Future<void> initializeDependencies() async {
   sl.registerSingleton<SearchRepository>(SearchRepositoryImpl(sl()));
 
   // Use Cases
-  sl.registerSingleton<GetSearchRecommendations>(GetSearchRecommendations(sl()));
+  sl.registerSingleton<GetSearchRecommendationsUseCase>(GetSearchRecommendationsUseCase(sl()));
 
   // Provider
   sl.registerSingleton<SearchRecommendationsProvider>(SearchRecommendationsProvider(sl()));

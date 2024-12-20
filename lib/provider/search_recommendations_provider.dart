@@ -3,7 +3,7 @@ import 'package:mapbox_implementation/entities/search_response_entity.dart';
 import 'package:mapbox_implementation/usecase/get_search_recommendations.dart';
 
 class SearchRecommendationsProvider extends ChangeNotifier {
-  final GetSearchRecommendations _getSearchRecommendations;
+  final GetSearchRecommendationsUseCase _getSearchRecommendations;
 
   SearchRecommendationsProvider(this._getSearchRecommendations);
 

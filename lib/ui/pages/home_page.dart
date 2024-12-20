@@ -46,6 +46,21 @@ class _HomePageState extends State<HomePage> {
             _searchArea(context)
           ],
         ),
+        floatingActionButton: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.add),
+              color: Colors.white,
+              tooltip: "Find Directions",
+              style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Colors.deepPurpleAccent)),
+            ),
+            const SizedBox(width: 3),
+            const Text("Add Annotation"),
+          ],
+        ),
       ),
     );
   }
@@ -97,7 +112,7 @@ class _HomePageState extends State<HomePage> {
     pointAnnotationOptions = PointAnnotationOptions(
         geometry: Point(coordinates: cameraPosition!), // Example coordinates
         image: imageData,
-        iconSize: 1.0
+        iconSize: 1.5
     );
 
     pointAnnotationManager?.create(pointAnnotationOptions!);
@@ -132,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.grey
             )
         ),
-        margin: const EdgeInsets.only(top: 32, left: 10, right: 10, bottom: 12),
+        margin: const EdgeInsets.only(top: 50, left: 10, right: 10, bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 8,),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -243,7 +258,7 @@ class _HomePageState extends State<HomePage> {
               : (state.searchResults != null)
                   ? Container(
                       height: (state.searchResults!.features!.length > 1)
-                        ? height * (state.searchResults!.features!.length / 13)
+                        ? height * (state.searchResults!.features!.length / 11.5)
                         : height * 0.1,
                       child: Center(
                         child: (state.searchResults!.features!.isNotEmpty)
